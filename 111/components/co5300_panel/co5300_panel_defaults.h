@@ -103,7 +103,7 @@
 #define CO5300_PANEL_DEFAULT_BRIGHTNESS 0xFF
 
 /* 传输优化参数：优化单次颜色传输最大行数以提升性能 */
-#define CO5300_PANEL_MAX_TRANSFER_LINES 80  // 从60增加到80行，提升传输效率
+#define CO5300_PANEL_MAX_TRANSFER_LINES 80 // 从60增加到80行，提升传输效率
 
 /**
  * @brief TE信号使能标志
@@ -119,7 +119,7 @@
  * 从40MHz提升到60MHz，在稳定性和性能间取得平衡
  * 注意：过高的频率可能导致信号完整性问题
  */
-#define CO5300_PANEL_OPTIMIZED_PCLK_HZ (60 * 1000 * 1000)
+#define CO5300_PANEL_OPTIMIZED_PCLK_HZ (40 * 1000 * 1000)
 
 /**
  * @brief 优化的传输队列深度
@@ -144,20 +144,20 @@
  * @brief 优化的QSPI IO配置宏
  * 相比默认配置，提升了时钟频率和队列深度
  */
-#define CO5300_PANEL_IO_QSPI_CONFIG_OPTIMIZED(cs, cb, cb_ctx)  \
-    {                                                           \
-        .cs_gpio_num = cs,                                      \
-        .dc_gpio_num = -1,                                      \
-        .spi_mode = 0,                                          \
-        .pclk_hz = CO5300_PANEL_OPTIMIZED_PCLK_HZ,             \
+#define CO5300_PANEL_IO_QSPI_CONFIG_OPTIMIZED(cs, cb, cb_ctx)          \
+    {                                                                  \
+        .cs_gpio_num = cs,                                             \
+        .dc_gpio_num = -1,                                             \
+        .spi_mode = 0,                                                 \
+        .pclk_hz = CO5300_PANEL_OPTIMIZED_PCLK_HZ,                     \
         .trans_queue_depth = CO5300_PANEL_OPTIMIZED_TRANS_QUEUE_DEPTH, \
-        .on_color_trans_done = cb,                              \
-        .user_ctx = cb_ctx,                                     \
-        .lcd_cmd_bits = 32,                                     \
-        .lcd_param_bits = 8,                                    \
-        .flags = {                                              \
-            .quad_mode = true,                                  \
-        },                                                      \
+        .on_color_trans_done = cb,                                     \
+        .user_ctx = cb_ctx,                                            \
+        .lcd_cmd_bits = 32,                                            \
+        .lcd_param_bits = 8,                                           \
+        .flags = {                                                     \
+            .quad_mode = true,                                         \
+        },                                                             \
     }
 
 /* ========== 注意 ========== */
@@ -165,9 +165,9 @@
  * QSPI配置宏已在 esp_lcd_co5300.h 中定义：
  * - CO5300_PANEL_BUS_QSPI_CONFIG
  * - CO5300_PANEL_IO_QSPI_CONFIG
- * 
+ *
  * 新增的优化配置宏：
  * - CO5300_PANEL_IO_QSPI_CONFIG_OPTIMIZED
- * 
+ *
  * 请根据实际需求选择使用标准配置或优化配置。
  */

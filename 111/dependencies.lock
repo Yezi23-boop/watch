@@ -50,7 +50,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.4.3
+    version: 5.4.2
   kodediy/esp_lcd_co5300:
     component_hash: 75ff601c293e302a7c997048800242b5df190b4270b7630187262b9aed89d858
     dependencies:

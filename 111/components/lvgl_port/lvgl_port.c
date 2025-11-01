@@ -119,11 +119,11 @@ static esp_err_t app_lvgl_init(void)
 {
     // /* 初始化LVGL核心库 */
     const lvgl_port_cfg_t lvgl_cfg = {
-        .task_priority = 8,     /* LVGL任务优先级 - 使用标准优先级 */
-        .task_stack = 1024*8,     /* LVGL任务堆栈大小(字节) - 保持8KB */
-        .task_affinity = -1,      /* LVGL任务CPU亲和性 - 不绑定特定CPU，让系统调度 */
+        .task_priority = 4,       /* LVGL任务优先级 - 使用标准优先级 */
+        .task_stack = 1024 * 8,   /* LVGL任务堆栈大小(字节) - 保持8KB */
+        .task_affinity = 1,       /* LVGL任务CPU1亲和性 - 绑定到CPU1 */
         .task_max_sleep_ms = 500, /* LVGL任务最大休眠时间(毫秒) - 使用标准值 */
-        .timer_period_ms = 5     /* LVGL定时器周期(毫秒)  */
+        .timer_period_ms = 5      /* LVGL定时器周期(毫秒)  */
     };
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL端口初始化失败");
 
@@ -132,8 +132,8 @@ static esp_err_t app_lvgl_init(void)
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle = lcd_io,                    // LCD IO句柄
         .panel_handle = lcd_panel,              // LCD面板句柄
-        .buffer_size = CO5300_PANEL_H_RES * 20, // 显示缓冲区大小(像素数)，减少到20行降低CPU负载
-        .double_buffer = false,                  // 启用双缓冲提高渲染流畅度
+        .buffer_size = CO5300_PANEL_H_RES * 20, // 显示缓冲区大小(像素数)，使用40行避免传输问题
+        .double_buffer = false,                 // 暂时禁用双缓冲，避免SPI传输问题
         .hres = CO5300_PANEL_H_RES,             // 水平分辨率(410像素)
         .vres = CO5300_PANEL_V_RES,             // 垂直分辨率(502像素)
         .monochrome = false,                    // 彩色显示(非单色)
@@ -143,9 +143,9 @@ static esp_err_t app_lvgl_init(void)
             .mirror_y = false, // 不镜像Y轴
         },
         .flags = {
-            .buff_dma = false,
-            .buff_spiram = true, // 启用SPI RAM作为缓冲区
-            .swap_bytes = true, // 交换字节序
+            .buff_dma = true,     // 禁用DMA，避免传输问题
+            .buff_spiram = false, // 暂时使用内部RAM，确保SPI传输稳定
+            .swap_bytes = true,   // 交换字节序
         }};
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
@@ -160,7 +160,6 @@ static esp_err_t app_lvgl_init(void)
     ESP_LOGI(TAG, "LVGL初始化完成");
     return ESP_OK;
 }
-
 
 /* ========================================================================== */
 /*                              公共接口函数                                    */

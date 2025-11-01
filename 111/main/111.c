@@ -11,44 +11,67 @@
 #include "printf_esp32.h"
 #include "esp_timer.h"
 #include "esp_freertos_hooks.h"
-static const char *TAG = "main";
-lv_ui guider_ui;
+#include "simple_wifi_sta.h"
+#include "hptts.h"
+#include "time_weather.h"
+#include "nvs_flash.h"
+#include "lvgl_task.h"
 
-// CPU使用率监控相关变量
-static TaskHandle_t cpu_monitor_task_handle = NULL;
-// CPU使用率监控任务
-static void cpu_monitor_task(void *arg)
-{
-    
-    while (1) 
-    {
-        // 等待5秒
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        
-        // 打印内存统计信息
-        printf_esp32_memory_stats();
-    }
-}
+TaskHandle_t lvgl_task_handle = NULL;
+TaskHandle_t lvgl_time_handle = NULL;
+static EventGroupHandle_t s_wifi_ev = NULL; // WiFi事件组句柄，用于线程间通信
+#define WIFI_CONNECT_BIT BIT0               // WiFi连接成功标志位（第0位）
+
+void wifi_event_handler(WIFI_EV_e ev);
+/**
+ * @brief 应用程序主入口函数
+ * @details 初始化LVGL系统，创建主页界面，运行主循环
+ */
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Starting application");
-    lvgl_port_init_all();
-    
-    lvgl_port_lock(0);
-    // lv_demo_benchmark();
-    setup_ui(&guider_ui);
-    events_init(&guider_ui);
-    lvgl_port_unlock();
-    
-    // 创建CPU使用率监控任务
-    xTaskCreatePinnedToCore(
-        cpu_monitor_task,         // 任务函数
-        "cpu_monitor",            // 任务名称
-        4096,                     // 栈大小
-        NULL,                     // 参数
-        1,                        // 优先级 (低优先级，避免影响其他任务)
-        &cpu_monitor_task_handle, // 任务句柄
-        0                         // 在CPU0上运行
-    );
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    /* 创建WiFi事件组用于线程同步 */
+    s_wifi_ev = xEventGroupCreate();
+    EventBits_t ev = 0; // 用于接收事件组状态
+
+    /* 初始化WiFi连接，传入事件回调函数 */
+    wifi_sta_init(wifi_event_handler);
+    /* 等待WiFi连接成功 */
+    // 阻塞等待WiFi连接成功事件，超时时间为永久等待
+    ev = xEventGroupWaitBits(s_wifi_ev, WIFI_CONNECT_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+
+    if (ev) // 检查WiFi是否连接成功
+    {
+        ESP_LOGI("MAIN", "WiFi connected successfully, starting HTTP request...");
+        // 先创建lvgl任务，确保LVGL端口初始化完成
+        // 增加栈大小到12KB，避免栈溢出
+        xTaskCreatePinnedToCore(lvgl_task, "lvgl_task", 1024 * 12, NULL, 5, &lvgl_task_handle, 1);
+
+        // 延迟一段时间，确保LVGL初始化完成
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // 创建时间和天气更新任务
+        // 增加栈大小到8KB，避免SNTP和LVGL操作导致的栈溢出
+        xTaskCreatePinnedToCore(time_and_weather, "time", 1024 * 8, NULL, 6, &lvgl_time_handle, 0);
+    }
+    else
+    {
+        ESP_LOGE("MAIN", "WiFi connection failed");
+    }
+}
+
+void wifi_event_handler(WIFI_EV_e ev)
+{
+    if (ev == WIFI_CONNECTED) // 如果WiFi连接成功
+    {
+        // 设置事件组中的WiFi连接位，通知主任务
+        xEventGroupSetBits(s_wifi_ev, WIFI_CONNECT_BIT);
+    }
 }
